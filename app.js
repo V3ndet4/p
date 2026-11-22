@@ -65,7 +65,7 @@ function render() {
     <div class="sectionhead"><h2>My collection</h2><span class="badge">${pots.length} ${pots.length===1?"plant":"plants"}</span></div>
     ${pots.length ? `<section class="grid">${[...pots].sort((a,b)=>nextCheck(a)-nextCheck(b)).map(card).join("")}</section>` : `<div class="empty"><div class="icon" aria-hidden="true">✿</div><div><h3>Add your first pot</h3><p class="muted">Each pot gets its own care guide and watering history.</p></div></div>`}`;
   } else if (page === "guides") {
-    main.innerHTML=`<h1 class="page-title">Care guides</h1><p class="section-intro">Indoor light and watering guidance for six flowering plants.</p><section class="grid">${Object.entries(guides).filter(([key])=>key!=="other").map(([,g])=>`<article class="card guide-card" style="--blush:${g.color}"><h3>${esc(g.name)}</h3><p class="quiet"><i>${esc(g.scientific)}</i></p>${guideText(g)}</article>`).join("")}</section>`;
+    main.innerHTML=`<h1 class="page-title">Care guides</h1><p class="section-intro">Light and watering guidance for indoor plants.</p><section class="grid">${Object.entries(guides).filter(([key])=>key!=="other").map(([,g])=>`<article class="card guide-card" style="--blush:${g.color}"><h3>${esc(g.name)}</h3><p class="quiet"><i>${esc(g.scientific)}</i></p>${guideText(g)}</article>`).join("")}</section>`;
   } else {
     const entries=pots.flatMap(p=>p.events.map(e=>({p,e}))).sort((a,b)=>b.e.at-a.e.at);
     main.innerHTML=`<h1 class="page-title">Activity</h1><p class="section-intro">Watering and moisture checks across your pots.</p><section class="panel">${entries.length ? entries.map(({p,e})=>activityRow(p,e)).join("") : "<h3>No entries yet</h3><p>Tap Watered on a pot to start its history.</p>"}</section>`;
@@ -117,7 +117,7 @@ body.addEventListener("change",async e=>{
   try {
     const {identify}=await import("./identify.js");const names=await identify(scaled);
     if(job!==photoJob)return;
-    matches.innerHTML=names.length ? `<p>Possible matches · tap one to confirm</p><div class="suggestions">${names.filter(k=>guides[k]).map(k=>button("match",esc(guides[k].name),`data-species="${k}"`)).join("")}</div>` : "No clear match in the six-plant guide. Choose a plant or select Other.";
+    matches.innerHTML=names.length ? `<p>Possible matches · tap one to confirm</p><div class="suggestions">${names.filter(k=>guides[k]).map(k=>button("match",esc(guides[k].name),`data-species="${k}"`)).join("")}</div>` : "No clear photo match. Choose a plant or select Other.";
   } catch {if(job===photoJob)matches.textContent="Photo saved for this pot. Identification is unavailable. Choose the plant below.";}
 });
 function detail(p) {
