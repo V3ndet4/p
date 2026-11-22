@@ -1,0 +1,8 @@
+TinyCLIP ViT-8M/16 (Microsoft Research, MIT)
+Original checkpoint: https://huggingface.co/wkcn/TinyCLIP-ViT-8M-16-Text-3M-YFCC15M
+ONNX conversion: https://huggingface.co/onnx-community/TinyCLIP-ViT-8M-16-Text-3M-YFCC15M-ONNX/tree/9463a9c508a344c837ffefe9d724f3827bf2dc79
+vision.onnx is the pixel_values to image_embeds subgraph of model_quantized.onnx.
+labels.json contains normalized mean text embeddings computed with the full-precision text encoder.
+
+ONNX Runtime Web 1.20.1 (Microsoft, MIT)
+https://www.npmjs.com/package/onnxruntime-web/v/1.20.1
