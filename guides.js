@@ -1,3 +1,6 @@
+import {indoorGuides} from "./indoor-guides.js";
+import {patioGuides} from "./patio-guides.js";
+
 export const guides = {
   peace: {name:"Peace lily", scientific:"Spathiphyllum", color:"#aabd96", days:3,
     about:"Look for glossy leaves and a white, sail-shaped spathe around a central spike of tiny flowers. An older spathe can naturally turn green.",
@@ -34,11 +37,17 @@ export const guides = {
     test:"Touch the potting mix. Has the surface just begun to feel dry?",
     water:"Slip off the decorative foil, water the mix thoroughly, and let the pot drain before replacing the cover.",
     light:"Place in bright light, away from cold drafts.", source:"https://extension.umn.edu/garden-and-home/yard-and-garden/gardening-in-minnesota/poinsettia"},
+  ...indoorGuides,
+  ...patioGuides,
   other: {name:"Unidentified plant", scientific:"", color:"#aabd96", days:3,
     test:"Does the potting mix meet the watering condition on your plant’s care label?",
     water:"Follow the watering directions on the plant’s label. You can keep a watering history while you confirm the species.",
     light:"Check your plant label for its preferred light.", source:null}
 };
+
+export const catalog = Object.entries(guides)
+  .filter(([,guide])=>guide.source)
+  .sort(([,a],[,b])=>a.name.localeCompare(b.name,"en"));
 
 export const day = 86400000;
 export const latestWater = p => p.events.find(e => e.type === "water");

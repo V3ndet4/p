@@ -1,4 +1,4 @@
-import {guides, day, nextCheck, latestWater} from "./guides.js";
+import {guides, catalog, day, nextCheck, latestWater} from "./guides.js?v=2";
 import {plants, change} from "./storage.js";
 import {heartBar, healthFields, observation} from "./health.js";
 import {milestones, timeline} from "./history.js";
@@ -17,6 +17,7 @@ const button = (action,label,attrs="",cls="") => `<button type="button" class="$
 const plantAttr = p => `data-pot="${esc(p.id)}"`;
 const view = () => ["guides","activity"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "plants";
 let pots = [], openPot = null, photo = "", photoJob = 0, timer;
+let guideQuery="";
 const broadcast = typeof BroadcastChannel === "function" ? new BroadcastChannel("petal-journal-change") : null;
 
 function flash(message, action="") {
@@ -50,9 +51,30 @@ function card(p) {
   <div class="actions">${p.ended?"":button("water","Watered",attr,"primary")}${button("detail","View pot",attr)}</div></article>`;
 }
 function guideText(g) {
-  const source = g.source?.includes("umn.edu") ? "University of Minnesota Extension" : "NC State Extension";
+  const host=g.source ? new URL(g.source).hostname : "";
+  const source=({
+    "plants.ces.ncsu.edu":"NC State Extension",
+    "extension.umn.edu":"University of Minnesota Extension",
+    "yardandgarden.extension.iastate.edu":"Iowa State University Extension",
+    "www.rhs.org.uk":"Royal Horticultural Society"
+  })[host] || host;
   return `${g.about ? `<p class="plant-fact">${esc(g.about)}</p>` : ""}<p class="guideline"><strong>When to water</strong><br>${esc(g.test)}</p><p class="guideline"><strong>How to water</strong><br>${esc(g.water)}</p><p class="light"><strong>Light</strong><br>${esc(g.light)}</p>${g.source ? `<a class="quiet" href="${esc(g.source)}" target="_blank" rel="noopener">${source} plant guide</a>` : ""}`;
 }
+function renderGuideResults() {
+  const normalize=s=>s.toLowerCase().normalize("NFD").replace(/\p{M}/gu,"").replace(/[’']/g,"").replace(/×/g,"x");
+  const words=normalize(guideQuery.trim()).split(/\s+/).filter(Boolean);
+  const matches=catalog.filter(([,g])=>{
+    const names=normalize(g.name+" "+g.scientific);
+    return words.every(word=>names.includes(word) ||
+      (word.length>3 && word.endsWith("s") && names.includes(word.replace(/ies$/,"y").replace(/s$/,""))));
+  });
+  $("#guide-count").textContent=words.length ? `${matches.length} of ${catalog.length} guides` : `${catalog.length} guides`;
+  $("#guide-results").innerHTML=matches.length ? matches.map(([,g])=>`<article class="card guide-card" style="--blush:${g.color}"><h3>${esc(g.name)}</h3><p class="quiet"><i>${esc(g.scientific)}</i></p>${guideText(g)}</article>`).join("") :
+    `<p class="panel">No matching guide. Try a common or scientific name.</p>`;
+}
+main.addEventListener("input",event=>{
+  if(event.target.id==="guide-query"){guideQuery=event.target.value;renderGuideResults();}
+});
 function profile(key) {
   const g=guides[key];
   if(!g)return "";
@@ -100,7 +122,8 @@ function render() {
     <div class="sectionhead"><h2>My collection</h2><span class="badge">${pots.length} ${pots.length===1?"plant":"plants"}</span></div>
     ${pots.length ? `<section class="grid">${[...pots].sort((a,b)=>nextCheck(a)-nextCheck(b)).map(card).join("")}</section>` : `<div class="empty"><div class="icon" aria-hidden="true">✿</div><div><h3>Add your first pot</h3><p class="muted">Each pot gets its own care guide and watering history.</p></div></div>`}`;
   } else if (page === "guides") {
-    main.innerHTML=`<h1 class="page-title">Care guides</h1><p class="section-intro">Light and watering guidance for indoor plants.</p><section class="grid">${Object.entries(guides).filter(([key])=>key!=="other").map(([,g])=>`<article class="card guide-card" style="--blush:${g.color}"><h3>${esc(g.name)}</h3><p class="quiet"><i>${esc(g.scientific)}</i></p>${guideText(g)}</article>`).join("")}</section>`;
+    main.innerHTML=`<h1 class="page-title">Care guides</h1><p class="section-intro">Light and watering guidance for houseplants and garden flowers.</p><div class="guide-tools"><label for="guide-query">Find a plant<input id="guide-query" type="search" placeholder="Common or scientific name" value="${esc(guideQuery)}" aria-controls="guide-results"></label><span id="guide-count" class="quiet" role="status"></span></div><section id="guide-results" class="grid"></section>`;
+    renderGuideResults();
   } else {
     const entries=pots.flatMap(p=>timeline(p).map(e=>({p,e}))).sort((a,b)=>b.e.at-a.e.at);
     main.innerHTML=`<h1 class="page-title">Activity</h1><p class="section-intro">Recent care and growth across your plants.</p><section class="panel">${entries.length ? entries.slice(0,50).map(({p,e})=>activityRow(p,e)).join("") : "<h3>No entries yet</h3><p>Add a plant to start its timeline.</p>"}</section>`;
@@ -121,7 +144,7 @@ function showAdd() {
   openPot=null; photo=""; photoJob++;
   modal("Add a plant",`<form id="add-form" data-species="other"><p>Photograph one plant in good light. Include its leaves and any flowers for automatic identification.</p>${photoControls()}
   <div id="photo-preview"></div><div id="check-preview">${heartBar(null)}</div>
-  <div id="matches" class="sub" role="status">Photo identification covers the seven plants in Care guides.</div><div id="add-profile"></div>
+  <div id="matches" class="sub" role="status">Photo identification covers the ${catalog.length} plants in Care guides.</div><div id="add-profile"></div>
   <details class="check-fold"><summary>Rate visible health (optional)</summary>${healthFields()}</details>
   <label class="field">Pot name <span class="quiet">(optional)</span><input id="nickname" maxlength="70" placeholder="e.g. Kitchen orchid"></label>
   <label class="field">Growing location<select id="place"><option>Indoors</option><option>Outdoors in a pot</option></select></label>
@@ -145,7 +168,7 @@ async function matchPhoto(form,photoUrl,job) {
   const message=form.querySelector("#matches"), panel=form.querySelector("#add-profile");
   message.textContent="Identifying your plant on this device…";
   try {
-    const {identify}=await import("./identify.js");
+    const {identify}=await import("./identify.js?v=2");
     const names=await identify(photoUrl);
     if(job!==photoJob || !form.isConnected)return;
     const key=names.length===1 && guides[names[0]]?.source ? names[0] : "other";
@@ -216,7 +239,7 @@ function detail(p) {
   <h3>Care guide</h3>${guideText(g)}<h3>Plant timeline</h3>${summary ? '<p class="quiet">Past 30 days · '+esc(summary)+'</p>' : ""}<div id="timeline">${historyPage(p)}</div>${button("export","Download timeline",attr,"textbtn")}`);
 }
 function editPot(p) {
-  modal("Edit pot",`<form id="edit-pot-form" data-pot="${p.id}"><label class="field">Pot name<input id="rename" maxlength="70" required value="${esc(p.name)}"></label><label class="field">Plant type<select id="reclassify">${Object.entries(guides).map(([key,g])=>`<option value="${key}" ${key===p.species?"selected":""}>${esc(g.name)}</option>`).join("")}</select></label><label class="field">Growing location<select id="relocate">${["Indoors","Outdoors in a pot"].map(place=>`<option ${place===p.location?"selected":""}>${place}</option>`).join("")}</select></label><button class="primary">Save changes</button></form>`);
+  modal("Edit pot",`<form id="edit-pot-form" data-pot="${p.id}"><label class="field">Pot name<input id="rename" maxlength="70" required value="${esc(p.name)}"></label><label class="field">Plant type<select id="reclassify">${[...catalog,["other",guides.other]].map(([key,g])=>`<option value="${key}" ${key===p.species?"selected":""}>${esc(g.name)}</option>`).join("")}</select></label><label class="field">Growing location<select id="relocate">${["Indoors","Outdoors in a pot"].map(place=>`<option ${place===p.location?"selected":""}>${place}</option>`).join("")}</select></label><button class="primary">Save changes</button></form>`);
 }
 function editEvent(p,e) {
   modal("Watering entry",`<p>${esc(p.name)}</p><form id="amount-form" data-pot="${p.id}" data-event="${e.id}"><label class="field">Watered on<input required type="datetime-local" id="water-time" max="${localMinute(Date.now())}" value="${localMinute(e.at)}"></label><label class="field">Amount in mL (optional)<input type="number" min="0.01" max="1000000" step="0.01" id="amount" value="${e.ml??""}" placeholder="e.g. 250"></label><div class="actions"><button class="primary">Save entry</button>${button("undo","Undo this watering",plantAttr(p)+` data-event="${e.id}"`,"textbtn")}</div></form>`);

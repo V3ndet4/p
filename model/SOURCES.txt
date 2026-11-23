@@ -16,3 +16,6 @@ elephant 408457821, 384580875, 384559275, 375006198, 357265777, 331671156, 32403
 jade 337694984, 337244683, 336617719, 332835048, 300297992, 236664710, 206396728, 197300112, 116456681, 94003988, 76670241, 75909879, 62203678, 29138833, 19737989
 kalanchoe 339617473, 256359532, 196161174
 zz 344852928, 257570105, 180888305, 11137532
+
+Expanded flower recognition
+flower-references.json contains cluster centers and a linear classifier fitted to normalized TinyCLIP image embeddings. Original iNaturalist photos, credited photographers and licenses are listed in flower-photo-credits.tsv. No reference photos are distributed with the app. Each original photo page provides its license terms. Background and lookalike classes are used to reject uncertain matches.

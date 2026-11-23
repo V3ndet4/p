@@ -60,3 +60,8 @@ body:has(dialog[open]){overflow:hidden}
 .history-photo{display:block;max-width:100%;width:160px;max-height:160px;object-fit:contain;border-radius:10px;margin:8px 0}
 #timeline p{white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0}
 textarea{box-sizing:border-box;display:block;width:100%;padding:10px 12px;margin-top:5px;font:inherit;color:var(--ink);background:white;border:1px solid #aab8a8;border-radius:10px;resize:vertical}
+.guide-tools{display:flex;align-items:end;justify-content:space-between;gap:14px;margin:0 0 20px}
+.guide-tools label{font-weight:650;flex:1;max-width:34rem}
+.guide-tools input{display:block}
+#guide-count{padding-bottom:10px;white-space:nowrap}
+@media(max-width:460px){.guide-tools{display:grid;gap:5px}#guide-count{padding:0}}
