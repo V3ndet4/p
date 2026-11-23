@@ -1,5 +1,6 @@
 import {guides, day, nextCheck, latestWater} from "./guides.js";
 import {plants, change} from "./storage.js";
+import {heartBar, healthFields, observation} from "./health.js";
 
 const $ = sel => document.querySelector(sel);
 const main = $("#main"), dialog = $("#dialog"), body = $("#dialog-body"), notice = $("#toast");
@@ -26,13 +27,14 @@ function modal(title,html) {
   body.innerHTML = `<div class="dialoghead"><h2 id="dtitle">${esc(title)}</h2>${button("close","×",'aria-label="Close"',"close")}</div>` + html;
   dialog.setAttribute("aria-labelledby","dtitle");
   if (!dialog.open) dialog.showModal();
+  dialog.scrollTop=0;
 }
 dialog.addEventListener("close", () => {
   if(dialog.open)return;
   photoJob++; openPot=null; photo=""; body.replaceChildren();
 });
 function icon(p) {
-  return p.photo ? `<img class="thumb" src="${esc(p.photo)}" alt="">` : `<span aria-hidden="true" class="icon" style="background:${guides[p.species].color}55">✿</span>`;
+  return p.photo ? `<img class="pot-portrait" src="${esc(p.photo)}" alt="Photo of ${esc(p.name)}">` : "";
 }
 function status(p) {
   if (p.events[0]?.type === "ready") return "Ready to water · confirmed by you";
@@ -40,12 +42,36 @@ function status(p) {
 }
 function card(p) {
   const water = latestWater(p), attr = plantAttr(p);
-  return `<article class="card"><div class="plant-top">${icon(p)}<div><h3>${esc(p.name)}</h3><p class="sub">${esc(guides[p.species].name)} · ${esc(p.location)}</p></div></div>
+  return `<article class="card pot-card"><div class="plant-top"><div><h3>${esc(p.name)}</h3><p class="sub">${esc(guides[p.species].name)} · ${esc(p.location)}</p></div></div>
+  ${icon(p)}<div class="card-health">${heartBar(p.health)}${button("check-health","Check",attr+` aria-label="Check visible health for ${esc(p.name)}"`,"check-shortcut")}</div>
   <p class="status"><strong>${esc(status(p))}</strong></p><p class="sub">${water ? "Last watered " + relative(water.at) + (water.ml != null ? " · " + water.ml + " mL" : "") : "No watering logged yet"}</p>
   <div class="actions">${button("water","Watered",attr,"primary")}${button("detail","View pot",attr)}</div></article>`;
 }
 function guideText(g) {
-  return `<p class="guideline"><strong>When to water</strong><br>${esc(g.test)}</p><p class="guideline"><strong>How to water</strong><br>${esc(g.water)}</p><p class="light"><strong>Light</strong><br>${esc(g.light)}</p>${g.source ? `<a class="quiet" href="${esc(g.source)}" target="_blank" rel="noopener">Read the grower’s guide</a>` : ""}`;
+  const source = g.source?.includes("umn.edu") ? "University of Minnesota Extension" : "NC State Extension";
+  return `${g.about ? `<p class="plant-fact">${esc(g.about)}</p>` : ""}<p class="guideline"><strong>When to water</strong><br>${esc(g.test)}</p><p class="guideline"><strong>How to water</strong><br>${esc(g.water)}</p><p class="light"><strong>Light</strong><br>${esc(g.light)}</p>${g.source ? `<a class="quiet" href="${esc(g.source)}" target="_blank" rel="noopener">${source} plant guide</a>` : ""}`;
+}
+function profile(key, tentative=false) {
+  const g=guides[key];
+  if(!g)return "";
+  if(!g.source)return `<p class="callout">Species unconfirmed. You can keep a photo and journal while you identify this plant.</p>`;
+  return `<section class="plant-profile" style="--accent:${g.color}"><p class="over">${tentative ? "Possible photo match" : "Plant profile"}</p><h3>${esc(g.name)}</h3><p class="sub"><i>${esc(g.scientific)}</i></p>${guideText(g)}</section>`;
+}
+function photoControls() {
+  return `<div class="photo-controls"><label class="button">Take photo<input id="camera" type="file" accept="image/*" capture="environment"></label><label class="button">Choose photo<input type="file" id="file" accept="image/*"></label></div>`;
+}
+function sampleFromInputs() {
+  return observation($("#inspected").value,$("#healthy").value);
+}
+function readCheck(required=false) {
+  const total=$("#inspected"),healthy=$("#healthy"),sample=sampleFromInputs();
+  if(sample)return {...sample,at:Date.now()};
+  if(!required && total.value==="" && healthy.value==="")return null;
+  const input=total.value==="" || !total.validity.valid ? total : healthy;
+  const fold=input.closest("details");if(fold)fold.open=true;
+  input.setCustomValidity("Enter 1–100 checked parts and a healthy count from zero to the number checked.");
+  input.reportValidity();input.setCustomValidity("");
+  return false;
 }
 function activityRow(p,e,editable=false) {
   const type = {water:"Watered",damp:"Checked · still damp",ready:"Checked · ready to water"}[e.type];
@@ -84,12 +110,14 @@ function fail(err) {
 }
 function showAdd() {
   openPot=null; photo=""; photoJob++;
-  modal("Add a plant",`<form id="add-form"><label class="field">Photo of one pot<input type="file" id="file" accept="image/*"></label>
-  <div id="photo-preview"></div><div id="matches" class="sub" aria-live="polite">A photo can suggest a match. You can also choose the plant below.</div>
+  modal("Add a plant",`<form id="add-form"><p>Photograph one plant in good light. Include its leaves and any flowers.</p>${photoControls()}
+  <div id="photo-preview"></div><div id="check-preview">${heartBar(null)}</div><details class="check-fold"><summary>Rate visible health (optional)</summary>${healthFields()}</details>
+  <div id="matches" class="sub" aria-live="polite">A photo can suggest a match. You can also choose the plant below.</div>
   <label class="field">Confirm plant type<select id="species" required><option value="">Choose a plant</option>${Object.entries(guides).map(([key,g])=>'<option value="'+key+'">'+esc(g.name)+'</option>').join("")}</select></label>
+  <div id="add-profile"></div>
   <label class="field">Pot name <span class="quiet">(optional)</span><input id="nickname" maxlength="70" placeholder="e.g. Kitchen orchid"></label>
   <label class="field">Growing location<select id="place"><option>Indoors</option><option>Outdoors in a pot</option></select></label>
-  <button class="primary" type="submit">Save plant</button></form>`);
+  <div class="sheet-actions"><button class="primary" type="submit">Save plant</button></div></form>`);
 }
 
 async function resize(file) {
@@ -102,31 +130,48 @@ async function resize(file) {
     return canvas.toDataURL("image/jpeg",.82);
   } finally {URL.revokeObjectURL(url);}
 }
+body.addEventListener("input",e=>{
+  if(["inspected","healthy"].includes(e.target.id))$("#check-preview").innerHTML=heartBar(sampleFromInputs());
+});
+function selectSpecies(key) {
+  $("#species").value=key;
+  $("#add-profile").innerHTML=profile(key);
+  if(key)$("#matches").textContent="Selected "+guides[key].name+".";
+}
 body.addEventListener("change",async e=>{
-  if(e.target.id!=="file") return;
-  const job=++photoJob, file=e.target.files[0], matches=$("#matches"), preview=$("#photo-preview"), submit=$("#add-form [type=submit]");
-  photo=""; preview.replaceChildren(); submit.disabled=false;
-  if(!file){ matches.textContent="Choose a plant below.";return; }
+  if(e.target.id==="species"){ selectSpecies(e.target.value); return; }
+  if(!["file","camera"].includes(e.target.id) || !e.target.files.length) return;
+  const job=++photoJob, file=e.target.files[0], matches=$("#matches"), preview=$("#photo-preview"), submit=e.target.form.querySelector('[type="submit"]');
+  const adding=!!$("#add-form");
+  e.target.value="";
+  if(adding){selectSpecies("");photo="";preview.replaceChildren();}
+  $("#inspected").value="";$("#healthy").value="";$("#check-preview").innerHTML=heartBar(null);
   submit.disabled=true;matches.textContent="Preparing photo…";
   let scaled;
   try { scaled=await resize(file); }
-  catch { if(job===photoJob){submit.disabled=false;matches.textContent="Couldn’t read this photo. Try a JPEG or choose a plant below.";}return; }
+  catch { if(job===photoJob){submit.disabled=false;matches.textContent="Couldn’t read this photo. Try a JPEG.";}return; }
   if(job!==photoJob)return;
   photo=scaled; preview.innerHTML=`<img class="preview" src="${scaled}" alt="Your plant">`; submit.disabled=false;
+  if(!adding){ submit.form.dataset.photoChanged="yes"; matches.textContent="Photo ready for this check."; return; }
   matches.textContent="Checking the photo on this device. You can choose a plant below at any time.";
   try {
     const {identify}=await import("./identify.js");const names=await identify(scaled);
-    if(job!==photoJob)return;
+    if(job!==photoJob || $("#species").value)return;
+    if(names.length)$("#add-profile").innerHTML=profile(names[0],true);
     matches.innerHTML=names.length ? `<p>Possible matches · tap one to confirm</p><div class="suggestions">${names.filter(k=>guides[k]).map(k=>button("match",esc(guides[k].name),`data-species="${k}"`)).join("")}</div>` : "No clear photo match. Choose a plant or select Other.";
-  } catch {if(job===photoJob)matches.textContent="Photo saved for this pot. Identification is unavailable. Choose the plant below.";}
+  } catch {if(job===photoJob && !$("#species").value)matches.textContent="Photo ready. Identification is unavailable. Choose the plant below.";}
 });
+function checkPlant(p) {
+  openPot=p.id;photo=p.photo||"";photoJob++;
+  modal("Check visible health",`<form id="health-form" data-pot="${p.id}"><p><strong>${esc(p.name)}</strong> · ${esc(guides[p.species].name)}</p><div id="photo-preview">${icon(p)}</div><div id="check-preview">${heartBar(null)}</div>${healthFields()}<details class="check-fold"><summary>Update plant photo</summary>${photoControls()}</details><p id="matches" class="sub" aria-live="polite"></p><div class="sheet-actions"><button type="submit" class="primary">Save health check</button>${button("detail","Back to pot",plantAttr(p))}</div></form>`);
+}
 function detail(p) {
   openPot=p.id;const g=guides[p.species],attr=plantAttr(p);
   const recent=p.events.filter(e=>e.type==="water" && Date.now()-e.at<=30*day);
   const measured=recent.filter(e=>e.ml!=null), unknown=recent.length-measured.length;
   const total=measured.reduce((sum,e)=>sum+e.ml,0);
   const summary=[measured.length ? total.toLocaleString(undefined,{maximumFractionDigits:2})+" mL recorded" : "",unknown ? unknown+" watering"+(unknown===1?"":"s")+" without an amount" : ""].filter(Boolean).join(" · ");
-  modal(p.name,`<p class="sub">${esc(g.name)} · ${esc(p.location)} ${button("edit-pot","Edit pot",attr,"textbtn")}</p><div class="callout"><strong>${esc(status(p))}</strong><p>${esc(g.test)}</p><div class="actions">${button("ready","Yes, ready",attr)}${button("damp","Still damp",attr)}</div></div>
+  modal(p.name,`<p class="sub">${esc(g.name)} · ${esc(p.location)} ${button("edit-pot","Edit pot",attr,"textbtn")}</p>${icon(p)}${heartBar(p.health)}${button("check-health",p.health?"Update health check":"Check visible health",attr)}<div class="callout"><strong>${esc(status(p))}</strong><p>${esc(g.test)}</p><div class="actions">${button("ready","Yes, ready",attr)}${button("damp","Still damp",attr)}</div></div>
   <div class="actions">${button("water","Watered",attr,"primary")}${button("calendar","Calendar reminder",attr)}</div>
   <h3>Care guide</h3>${guideText(g)}<h3>Pot history</h3>${summary ? '<p class="quiet">Past 30 days · '+esc(summary)+'</p>' : ""}${p.events.length?p.events.map(e=>activityRow(p,e,true)).join(""):"<p class='sub'>No entries yet.</p>"}`);
 }
@@ -151,9 +196,15 @@ document.addEventListener("click",async ev=>{
   const a=b.dataset.action,p=current(b.dataset.pot);
   if(a==="close"){dialog.close();return;}
   if(a==="add"){showAdd();return;}
-  if(a==="match"){ $("#species").value=b.dataset.species;$("#matches").textContent="Selected "+guides[b.dataset.species].name+".";return; }
+  if(a==="rate-five"){
+    $("#inspected").value="5";$("#healthy").value=b.dataset.count;
+    $("#check-preview").innerHTML=heartBar(sampleFromInputs());
+    return;
+  }
+  if(a==="match"){selectSpecies(b.dataset.species);return;}
   if(!p)return;
-  if(a==="detail"){detail(p);return;}
+  if(a==="detail"){photoJob++;detail(p);return;}
+  if(a==="check-health"){checkPlant(p);return;}
   if(a==="edit-pot"){editPot(p);return;}
   if(a==="calendar"){calendar(p);return;}
   if(a==="event"){const e=p.events.find(x=>x.id===b.dataset.event);if(e)editEvent(p,e);return;}
@@ -182,12 +233,18 @@ document.addEventListener("click",async ev=>{
   } catch(err){fail(err);}finally{b.disabled=false;}
 });
 body.addEventListener("submit",async ev=>{
-  ev.preventDefault();const form=ev.target,b=form.querySelector('[type="submit"],button');if(b.disabled)return;b.disabled=true;
+  ev.preventDefault();const form=ev.target,b=form.querySelector('button[type="submit"]')||form.querySelector('button:not([type="button"])');if(!b||b.disabled)return;b.disabled=true;
   try{
     if(form.id==="add-form"){
       const species=$("#species").value;if(!guides[species])return;
-      const p={id:id(),name:$("#nickname").value.trim()||guides[species].name,species,location:$("#place").value,photo,created:Date.now(),events:[]};
+      const health=readCheck();if(health===false)return;
+      const p={id:id(),name:$("#nickname").value.trim()||guides[species].name,species,location:$("#place").value,photo,health,created:Date.now(),events:[]};
       await commit(p.id,()=>p);dialog.close();location.hash="plants";flash(p.name+" added.");
+    } else if(form.id==="health-form"){
+      const health=readCheck(true);if(!health)return;
+      const updatedPhoto=photo;
+      await commit(form.dataset.pot,p=>({...p,health,...(form.dataset.photoChanged ? {photo:updatedPhoto} : {})}));
+      closeOrDetail();flash("Health check saved.");
     } else if(form.id==="edit-pot-form"){
       const name=$("#rename").value.trim(),species=$("#reclassify").value,location=$("#relocate").value;
       await commit(form.dataset.pot,p=>({...p,name:name||guides[species].name,species,location}));
