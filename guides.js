@@ -34,7 +34,7 @@ export const guides = {
     test:"Touch the potting mix. Has the surface just begun to feel dry?",
     water:"Slip off the decorative foil, water the mix thoroughly, and let the pot drain before replacing the cover.",
     light:"Place in bright light, away from cold drafts.", source:"https://extension.umn.edu/garden-and-home/yard-and-garden/gardening-in-minnesota/poinsettia"},
-  other: {name:"Other or unknown plant", scientific:"", color:"#aabd96", days:3,
+  other: {name:"Unidentified plant", scientific:"", color:"#aabd96", days:3,
     test:"Does the potting mix meet the watering condition on your plant’s care label?",
     water:"Follow the watering directions on the plant’s label. You can keep a watering history while you confirm the species.",
     light:"Check your plant label for its preferred light.", source:null}
