@@ -16,7 +16,7 @@ const dueToday = p => !p.ended && dayStart(nextCheck(p)) <= dayStart(Date.now())
 const relative = at => Date.now() - at < 60000 ? "just now" : dayStart(at) === dayStart(Date.now()) ? "today at " + time(at) : date(at);
 const button = (action,label,attrs="",cls="") => `<button type="button" class="${cls}" data-action="${action}" ${attrs}>${label}</button>`;
 const plantAttr = p => `data-pot="${esc(p.id)}"`;
-const view = () => ["plants","intelligence","plant-lab","water-lab","guides","activity"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
+const view = () => ["plants","scanner","intelligence","plant-lab","water-lab","guides","activity"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
 let pots = [], openPot = null, photo = "", photoJob = 0, timer;
 let guideQuery="", waterLabPlant="";
 const broadcast = typeof BroadcastChannel === "function" ? new BroadcastChannel("petal-journal-change") : null;
@@ -202,14 +202,18 @@ main.addEventListener("change",event=>{
 });
 function render() {
   const page=view();
-  document.title = "Petal Journal · "+({overview:"Overview",plants:"My Garden","water-lab":"Water Lab","plant-lab":"Plant Lab",intelligence:"Intelligence",guides:"Care guides",activity:"Activity"}[page]);
-  for (const link of document.querySelectorAll("nav a")) {
+  document.title = "Petal Journal · "+({overview:"Overview",plants:"My Garden",scanner:"Plant Scanner","water-lab":"Water Lab","plant-lab":"Plant Lab",intelligence:"Intelligence",guides:"Care guides",activity:"Activity"}[page]);
+  for (const link of document.querySelectorAll("nav a, .journal-links a")) {
     if (link.hash === "#"+page) link.setAttribute("aria-current","page"); else link.removeAttribute("aria-current");
   }
   if (page === "overview") {
     const tasks = pots.filter(dueToday).sort((a,b)=>nextCheck(a)-nextCheck(b));
     main.innerHTML = `<h1 class="page-title">Overview</h1><div class="sectionhead"><h2>Today’s care</h2>${button("scan","Scan a plant","","primary")}</div>
       ${tasks.length ? `<section class="grid">${tasks.map(overviewTask).join("")}</section>` : `<p class="empty">${pots.length ? "No care tasks due today." : "Add your first plant to see its care tasks here."}</p>`}`;
+  } else if (page === "scanner") {
+    main.innerHTML=`<section class="scanner-panel"><div><h1>Plant Scanner</h1><p>Photograph one plant in even light. Include its leaves and any flowers.</p>
+      <div class="actions">${button("scan-camera","Take photo","","primary")}${button("scan-file","Choose photo")}</div></div>
+      <img src="./botanical-hero.jpg" alt="White orchid flowers and green leaves"></section>`;
   } else if (page === "intelligence") {
     renderIntelligence();
   } else if (page === "plant-lab") {
@@ -410,6 +414,7 @@ document.addEventListener("click",async ev=>{
   const b=ev.target.closest("[data-action]");if(!b||b.disabled)return;
   const a=b.dataset.action,p=current(b.dataset.pot);
   if(a==="close"){dialog.close();return;}
+  if(a==="scan-camera" || a==="scan-file"){showAdd(true);$(a==="scan-camera"?"#camera":"#file").click();return;}
   if(a==="add" || a==="scan"){showAdd(a==="scan");return;}
   if(a==="rate-five"){
     $("#inspected").value="5";$("#healthy").value=b.dataset.count;
