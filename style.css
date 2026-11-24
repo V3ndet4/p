@@ -34,7 +34,7 @@ body:has(dialog[open]){overflow:hidden}
 @media(max-width:650px){
   body{padding-bottom:calc(68px + env(safe-area-inset-bottom))}
   .top{padding:12px 0}
-  nav{position:fixed;z-index:5;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px max(8px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+  nav{position:fixed;z-index:5;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--line);display:grid;grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto;gap:12px;padding:6px max(8px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
   nav a{display:grid;place-items:center;border:0;border-radius:10px;min-height:46px;font-size:.95rem}
   nav a[aria-current]{color:#20472f;background:#e1ebdb}
   .hero-photo{min-height:105px}

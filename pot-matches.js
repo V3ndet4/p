@@ -22,7 +22,7 @@ export function savedMembers(form){
 export function mountPreview(form,picture,localKeys,resize){
   const root=form.querySelector("#add-profile");
   const rows=localKeys.filter(k=>guides[k]?.source).map(k=>make(guides[k].name,guides[k].scientific,"On device",k));
-  const state={rows,selected:rows.length===1?[0]:[]};form.previewState=state;
+  const state={rows,selected:form.id==="add-form" ? [] : rows.length===1?[0]:[]};form.previewState=state;
   root.innerHTML=`<div class="match-results"></div><label class="field">Add a close-up of another plant in this pot<input type="file" accept="image/*" class="close-up"></label><div class="close-preview" role="status"></div><details class="check-fold"><summary>Optional specialist lookup</summary><p>Send this photo to Pl@ntNet for additional possible matches. Enter your own Pl@ntNet API key for this lookup. The journal does not store it.</p><label class="field">Pl@ntNet API key<input type="password" class="special-key" autocomplete="off" spellcheck="false"></label><button type="button" class="send-photo">Send photo to Pl@ntNet</button><p class="lookup-status" role="status"></p></details><details class="check-fold"><summary>Add a known plant by scientific name</summary><label class="field">Scientific name<input class="known-name" maxlength="100" placeholder="e.g. Sedum adolphii"></label><button type="button" class="add-known">Add to this pot</button></details>`;
   function draw(){root.querySelector(".match-results").innerHTML=display(state.rows,state.selected);form.dataset.species=savedMembers(form)[0]?.key||"other";}
   function append(m){
