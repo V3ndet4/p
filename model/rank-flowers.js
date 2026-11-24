@@ -1,3 +1,5 @@
+import {plantNames} from "./plant-names.js";
+
 function dot(vector, features) {
   let sum = 0;
   for (let i = 0; i < features.length; i++) sum += vector[i] * features[i];
@@ -22,7 +24,7 @@ export function rankFlowers(features, labels, references) {
     return {id, text, image, linear, score: text + 0.45 * image + 0.32 * linear};
   }).sort((a,b) => b.score-a.score);
   const [best, second] = ranked;
-  if (best.id.startsWith('_')) return [];
+  if (!plantNames[best.id]) return [];
 
   // Background and lookalike classes can veto an identification even when
   // a flower narrowly wins the combined score.
@@ -32,8 +34,8 @@ export function rankFlowers(features, labels, references) {
   const margin = best.score - second.score;
   const textRival = Math.max(...ranked.slice(1).map(row => row.text));
   if (best.text >= 0.43 && best.text - textRival >= 0.045 && best.linear > 0 && margin > 0.01) return [best.id];
-  const background = Math.max(...ranked.filter(row => row.id.startsWith('_')).map(row => row.text));
-  if (margin < 0.035 || best.text < 0.34 || background >= best.text + 0.025) return [];
+  const background = Math.max(...ranked.filter(row => !plantNames[row.id]).map(row => row.text));
+  if (best.text < 0.34 || background >= best.text + 0.025) return [];
   if ((best.image < 0.74 && best.text < 0.435) || (best.linear < 0.07 && best.text < 0.44)) return [];
-  return [best.id];
+  return ranked.slice(0,3).filter(row => plantNames[row.id] && best.score-row.score < 0.035 && row.text >= 0.34 && (row.image >= 0.74 || row.text >= 0.435)).map(row=>row.id);
 }

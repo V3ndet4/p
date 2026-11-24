@@ -1,4 +1,4 @@
-import { rankFlowers } from './rank-flowers.js';
+import { rankFlowers } from './rank-flowers.js?v=2';
 import { env, InferenceSession, Tensor } from './ort.wasm.min.mjs';
 
 env.wasm.numThreads = 1;

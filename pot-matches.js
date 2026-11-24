@@ -1,3 +1,4 @@
+import {plantNames} from "./model/plant-names.js";
 import {guides} from "./guides.js?v=2";
 import {careKey,extraCare} from "./plant-profile.js";
 import {renderMatches} from "./match-preview.js";
@@ -14,6 +15,10 @@ export function potGuidance(p){
 function make(name,scientific,source,key){
   return {name:name||scientific,scientific,source,key:key||careKey(scientific)||"other"};
 }
+function localMatch(id){
+  const [name,scientific]=plantNames[id];
+  return make(name,scientific,"On device",guides[id]?.source ? id : undefined);
+}
 function display(rows,selected){return renderMatches(rows.map(m=>({...m,guide:memberGuide(m)})),selected);}
 export function savedMembers(form){
   const state=form.previewState;
@@ -21,7 +26,7 @@ export function savedMembers(form){
 }
 export function mountPreview(form,picture,localKeys,resize){
   const root=form.querySelector("#add-profile");
-  const rows=localKeys.filter(k=>guides[k]?.source).map(k=>make(guides[k].name,guides[k].scientific,"On device",k));
+  const rows=localKeys.filter(k=>plantNames[k]).map(localMatch);
   const state={rows,selected:form.id==="add-form" ? [] : rows.length===1?[0]:[]};form.previewState=state;
   root.innerHTML=`<div class="match-results"></div><label class="field">Add a close-up of another plant in this pot<input type="file" accept="image/*" class="close-up"></label><div class="close-preview" role="status"></div><details class="check-fold"><summary>Optional specialist lookup</summary><p>Send this photo to Pl@ntNet for additional possible matches. Enter your own Pl@ntNet API key for this lookup. The journal does not store it.</p><label class="field">Pl@ntNet API key<input type="password" class="special-key" autocomplete="off" spellcheck="false"></label><button type="button" class="send-photo">Send photo to Pl@ntNet</button><p class="lookup-status" role="status"></p></details><details class="check-fold"><summary>Add a known plant by scientific name</summary><label class="field">Scientific name<input class="known-name" maxlength="100" placeholder="e.g. Sedum adolphii"></label><button type="button" class="add-known">Add to this pot</button></details>`;
   function draw(){root.querySelector(".match-results").innerHTML=display(state.rows,state.selected);form.dataset.species=savedMembers(form)[0]?.key||"other";}
@@ -38,11 +43,11 @@ export function mountPreview(form,picture,localKeys,resize){
       info.textContent="Checking the additional photo…";
       try{
         const data=await resize(file);
-        const {identify}=await import("./identify.js?v=2");
+        const {identify}=await import("./identify.js?v=3");
         const ids=await identify(data);
         if(job!==imageJob||!root.isConnected||form.previewState!==state)return;
         picture=data;
-        for(const k of ids)if(guides[k]?.source)append(make(guides[k].name,guides[k].scientific,"On device",k));
+        for(const k of ids)if(plantNames[k])append(localMatch(k));
         info.innerHTML=`<img class="preview" src="${data}" alt="Additional close-up"><p>${ids.length?"Select the plants present in the pot.":"No clear local match."} Specialist lookup will use this close-up.</p>`;
         draw();
       }catch{if(job===imageJob && root.isConnected)info.textContent="Could not check this close-up.";}

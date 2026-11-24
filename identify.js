@@ -16,7 +16,7 @@ function resetWorker(error) {
 
 function getWorker() {
   if (worker) return worker;
-  worker = new Worker(new URL('./model/matcher.js?v=2', import.meta.url), { type: 'module' });
+  worker = new Worker(new URL('./model/matcher.js?v=3', import.meta.url), { type: 'module' });
   worker.onerror = () => resetWorker(new Error('Photo matching could not start.'));
   worker.onmessage = ({ data }) => {
     const request = pending.get(data.id);

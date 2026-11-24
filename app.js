@@ -1,4 +1,4 @@
-import {mountPreview,examplePreview,savedMembers,potLabel,potGuidance,memberGuide} from "./pot-matches.js?v=2";
+import {mountPreview,examplePreview,savedMembers,potLabel,potGuidance,memberGuide} from "./pot-matches.js?v=3";
 import {guides, catalog, day, observedDryingDays, nextCheck, latestWater} from "./guides.js?v=4";
 import {plants, change} from "./storage.js";
 import {heartBar, healthFields, observation} from "./health.js";
@@ -248,7 +248,7 @@ function showAdd(scanning=false) {
   openPot=null; photo=""; photoJob++;
   modal(scanning ? "Plant Scanner" : "Add a plant",`<form id="add-form" data-species="other"><p>Photograph one plant in good light. Include its leaves and any flowers for automatic identification.</p>${photoControls()}
   <details class="check-fold" id="example-fold"><summary>Preview a two-plant pot</summary><p>Interactive example with two sedums. No photo has been analyzed for this example.</p><div id="example-content"></div></details><div id="photo-preview"></div><div id="check-preview">${heartBar(null)}</div>
-  <div id="matches" class="sub" role="status">Photo identification covers the ${catalog.length} plants in Care guides.</div><div id="add-profile"></div>
+  <div id="matches" class="sub" role="status">Photo identification runs on this device.</div><div id="add-profile"></div>
   <details class="check-fold"><summary>Rate visible health (optional)</summary>${healthFields()}</details>
   <label class="field">Pot name <span class="quiet">(optional)</span><input id="nickname" maxlength="70" placeholder="e.g. Kitchen orchid"></label>
   <label class="field">Growing location<select id="place"><option>Indoors</option><option>Outdoors in a pot</option></select></label>
@@ -295,13 +295,11 @@ async function matchPhoto(form,photoUrl,job) {
   let keys=[];
   message.textContent="Identifying your plant on this device…";
   try {
-    const {identify}=await import("./identify.js?v=2");
+    const {identify}=await import("./identify.js?v=3");
     const names=await identify(photoUrl);keys=names;
     if(job!==photoJob || !form.isConnected)return;
-    const key=names.length===1 && guides[names[0]]?.source ? names[0] : "other";
-    form.dataset.species=key;
+    message.textContent=names.length ? "Select the matches you recognize. For a closer identification, add a clear view of a flower or where a leaf meets the stem." : "No clear local match. Try a close-up of a flower or leaf attachment, or use the optional specialist lookup below.";
 
-    message.textContent=names.some(name=>guides[name]?.source) ? "Select the matches you recognize, then save your plant." : "No clear match. Try another photo or enter a known name below.";
   } catch {
     if(job===photoJob && form.isConnected)message.textContent="Identification is unavailable. You can save this photo and try again later.";
   }
