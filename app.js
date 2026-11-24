@@ -1,5 +1,5 @@
 import {mountPreview,examplePreview,savedMembers,potLabel,potGuidance,memberGuide} from "./pot-matches.js";
-import {guides, catalog, day, nextCheck, latestWater} from "./guides.js?v=2";
+import {guides, catalog, day, observedDryingDays, nextCheck, latestWater} from "./guides.js?v=4";
 import {plants, change} from "./storage.js";
 import {heartBar, healthFields, observation} from "./health.js";
 import {milestones, timeline} from "./history.js";
@@ -27,7 +27,7 @@ function flash(message, action="") {
   timer = setTimeout(() => { notice.replaceChildren(); },action ? 12000 : 5000);
 }
 function modal(title,html) {
-  body.innerHTML = `<div class="dialoghead"><h2 id="dtitle">${esc(title)}</h2>${button("close","Ã—",'aria-label="Close"',"close")}</div>` + html;
+  body.innerHTML = `<div class="dialoghead"><h2 id="dtitle">${esc(title)}</h2>${button("close","×",'aria-label="Close"',"close")}</div>` + html;
   dialog.setAttribute("aria-labelledby","dtitle");
   if (!dialog.open) dialog.showModal();
   dialog.scrollTop=0;
@@ -40,15 +40,19 @@ function icon(p) {
   return p.photo ? `<img class="pot-portrait" src="${esc(p.photo)}" alt="Photo of ${esc(p.name)}">` : "";
 }
 function status(p) {
-  if(p.ended)return "Tracking ended Â· "+date(p.ended);
-  if (p.events[0]?.type === "ready") return "Ready to water Â· confirmed by you";
-  return dueToday(p) ? "Potting mix check due" : "Next check Â· " + date(nextCheck(p));
+  if(p.ended)return "Tracking ended · "+date(p.ended);
+  const last=p.events[0];
+  const current=last && dayStart(last.at)===dayStart(Date.now());
+  if(current && last.type==="ready")return "Ready for water · mix checked today";
+  if(current && last.type==="damp")return "Wait to water · mix still damp";
+  if(current && last.type==="water")return "Watered today";
+  return dueToday(p) ? "Check the mix before watering" : "Next moisture check · "+date(nextCheck(p));
 }
 function card(p) {
   const water = latestWater(p), attr = plantAttr(p);
-  return `<article class="card pot-card"><div class="plant-top"><div><h3>${esc(p.name)}</h3><p class="sub">${esc(potLabel(p))} Â· ${esc(p.location)}</p></div></div>
+  return `<article class="card pot-card"><div class="plant-top"><div><h3>${esc(p.name)}</h3><p class="sub">${esc(potLabel(p))} · ${esc(p.location)}</p></div></div>
   ${icon(p)}<div class="card-health">${heartBar(p.health)}${p.ended ? "" : button("check-health","Check",attr+` aria-label="Check visible health for ${esc(p.name)}"`,"check-shortcut")}</div>
-  <p class="status"><strong>${esc(status(p))}</strong></p><p class="sub">${water ? "Last watered " + relative(water.at) + (water.ml != null ? " Â· " + water.ml + " mL" : "") : "No watering logged yet"}</p>
+  <p class="status"><strong>${esc(status(p))}</strong></p><p class="sub">${water ? "Last watered " + relative(water.at) + (water.ml != null ? " · " + water.ml + " mL" : "") : "No watering logged yet"}</p>
   <div class="actions">${p.ended?"":button("water","Watered",attr,"primary")}${button("detail","View pot",attr)}</div></article>`;
 }
 function guideText(g) {
@@ -62,7 +66,7 @@ function guideText(g) {
   return `${g.about ? `<p class="plant-fact">${esc(g.about)}</p>` : ""}<p class="guideline"><strong>When to water</strong><br>${esc(g.test)}</p><p class="guideline"><strong>How to water</strong><br>${esc(g.water)}</p><p class="light"><strong>Light</strong><br>${esc(g.light)}</p>${g.source ? `<a class="quiet" href="${esc(g.source)}" target="_blank" rel="noopener">${source} plant guide</a>` : ""}`;
 }
 function renderGuideResults() {
-  const normalize=s=>s.toLowerCase().normalize("NFD").replace(/\p{M}/gu,"").replace(/[â€™']/g,"").replace(/Ã—/g,"x");
+  const normalize=s=>s.toLowerCase().normalize("NFD").replace(/\p{M}/gu,"").replace(/[’']/g,"").replace(/×/g,"x");
   const words=normalize(guideQuery.trim()).split(/\s+/).filter(Boolean);
   const matches=catalog.filter(([,g])=>{
     const names=normalize(g.name+" "+g.scientific);
@@ -92,34 +96,34 @@ function readCheck(required=false) {
   if(!required && total.value==="" && healthy.value==="")return null;
   const input=total.value==="" || !total.validity.valid ? total : healthy;
   const fold=input.closest("details");if(fold)fold.open=true;
-  input.setCustomValidity("Enter 1â€“100 checked parts and a healthy count from zero to the number checked.");
+  input.setCustomValidity("Enter 1–100 checked parts and a healthy count from zero to the number checked.");
   input.reportValidity();input.setCustomValidity("");
   return false;
 }
 function activityRow(p,e,editable=false) {
   if (!e.type) {
     const when=e.at ? date(e.at)+" at "+time(e.at) : "Original date unknown";
-    return `<div class="event"><div><strong>${esc(editable ? e.title : p.name)}</strong><small>${editable ? "" : esc(e.title)+" Â· "}${when}</small>${e.note ? `<p>${esc(e.note)}</p>` : ""}${e.health ? `<small>${e.health.healthy} of ${e.health.total} checked looked healthy</small>` : ""}${editable && e.photo ? `<img loading="lazy" class="history-photo" src="${esc(e.photo)}" alt="${esc(e.title)} for ${esc(p.name)}">` : ""}</div></div>`;
+    return `<div class="event"><div><strong>${esc(editable ? e.title : p.name)}</strong><small>${editable ? "" : esc(e.title)+" · "}${when}</small>${e.note ? `<p>${esc(e.note)}</p>` : ""}${e.health ? `<small>${e.health.healthy} of ${e.health.total} checked looked healthy</small>` : ""}${editable && e.photo ? `<img loading="lazy" class="history-photo" src="${esc(e.photo)}" alt="${esc(e.title)} for ${esc(p.name)}">` : ""}</div></div>`;
   }
-  const type = {water:"Watered",damp:"Checked Â· still damp",ready:"Checked Â· ready to water"}[e.type];
-  return `<div class="event"><div><strong>${esc(editable ? type : p.name)}</strong><small>${editable ? "" : esc(type)+" Â· "}${date(e.at)} at ${time(e.at)}${e.ml != null ? " Â· "+e.ml+" mL" : ""}</small></div>
+  const type = {water:"Watered",damp:"Checked · still damp",ready:"Checked · ready to water"}[e.type];
+  return `<div class="event"><div><strong>${esc(editable ? type : p.name)}</strong><small>${editable ? "" : esc(type)+" · "}${date(e.at)} at ${time(e.at)}${e.ml != null ? " · "+e.ml+" mL" : ""}</small></div>
   ${e.type === "water" ? button("event","Edit",plantAttr(p)+` data-event="${esc(e.id)}" aria-label="Edit watering entry"`,"textbtn") : ""}</div>`;
 }
 
 function render() {
   const page=view();
-  document.title = "Petal Journal Â· "+({plants:"My plants",guides:"Care guides",activity:"Activity"}[page]);
+  document.title = "Petal Journal · "+({plants:"My plants",guides:"Care guides",activity:"Activity"}[page]);
   for (const link of document.querySelectorAll("nav a")) {
     if (link.hash === "#"+page) link.setAttribute("aria-current","page"); else link.removeAttribute("aria-current");
   }
   if (page === "plants") {
     const due = pots.filter(dueToday).length;
     let intro="Photograph a plant to identify it and start its journal.";
-    if(pots.length)intro=pots.some(p=>!p.ended) ? "See each plantâ€™s next moisture check below." : "Open a pot to revisit its timeline.";
+    if(pots.length)intro=pots.some(p=>!p.ended) ? "See each plant’s next moisture check below." : "Open a pot to revisit its timeline.";
     if(due)intro=`${due} ${due===1?"pot is":"pots are"} due for a moisture check today.`;
-    main.innerHTML = `<section class="hero"><div class="hero-copy"><p class="over">${esc(new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"}))}</p><h1>My plant journal</h1><p>${intro}</p>${button("add","ï¼‹ Add a plant","","primary")}</div><div class="hero-photo"><img src="./hero.jpg" alt="Magenta moth orchid with a white and gold center"></div></section>
+    main.innerHTML = `<section class="hero"><div class="hero-copy"><p class="over">${esc(new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"}))}</p><h1>My plant <em>journal</em></h1><p>${intro}</p>${button("add","＋ Add a plant","","primary")}</div><div class="hero-photo"><img src="./botanical-hero.jpg" alt="White orchid blooms against deep green foliage"></div></section>
     <div class="sectionhead"><h2>My collection</h2><span class="badge">${pots.length} ${pots.length===1?"plant":"plants"}</span></div>
-    ${pots.length ? `<section class="grid">${[...pots].sort((a,b)=>nextCheck(a)-nextCheck(b)).map(card).join("")}</section>` : `<div class="empty"><div class="icon" aria-hidden="true">âœ¿</div><div><h3>Add your first pot</h3><p class="muted">Each pot gets its own care guide and watering history.</p></div></div>`}`;
+    ${pots.length ? `<section class="grid">${[...pots].sort((a,b)=>nextCheck(a)-nextCheck(b)).map(card).join("")}</section>` : `<div class="empty"><div class="icon" aria-hidden="true">✿</div><div><h3>Add your first pot</h3><p class="muted">Each pot gets its own care guide and watering history.</p></div></div>`}`;
   } else if (page === "guides") {
     main.innerHTML=`<h1 class="page-title">Care guides</h1><p class="section-intro">Light and watering guidance for houseplants and garden flowers.</p><div class="guide-tools"><label for="guide-query">Find a plant<input id="guide-query" type="search" placeholder="Common or scientific name" value="${esc(guideQuery)}" aria-controls="guide-results"></label><span id="guide-count" class="quiet" role="status"></span></div><section id="guide-results" class="grid"></section>`;
     renderGuideResults();
@@ -135,7 +139,7 @@ document.addEventListener("visibilitychange",()=>{ if (!document.hidden) load().
 if (broadcast) broadcast.onmessage=()=>load().catch(fail);
 function fail(err) {
   console.error(err);
-  const msg="The journal couldnâ€™t save or load your data. Check this browserâ€™s storage and try again.";
+  const msg="The journal couldn’t save or load your data. Check this browser’s storage and try again.";
   if (dialog.open) { let el=$("#form-error"); if(!el){el=document.createElement("p");el.id="form-error";el.className="err";el.setAttribute("role","alert");body.prepend(el);} el.textContent=msg; }
   else flash(msg);
 }
@@ -167,7 +171,7 @@ body.addEventListener("input",e=>{
 async function matchPhoto(form,photoUrl,job) {
   const message=form.querySelector("#matches");
   let keys=[];
-  message.textContent="Identifying your plant on this deviceâ€¦";
+  message.textContent="Identifying your plant on this device…";
   try {
     const {identify}=await import("./identify.js?v=2");
     const names=await identify(photoUrl);keys=names;
@@ -190,10 +194,10 @@ body.addEventListener("change",async e=>{
   photo="";preview.replaceChildren();
   if($("#add-profile"))$("#add-profile").replaceChildren();
   if($("#inspected")){$("#inspected").value="";$("#healthy").value="";$("#check-preview").innerHTML=heartBar(null);}
-  submit.disabled=true;matches.textContent="Preparing photoâ€¦";
+  submit.disabled=true;matches.textContent="Preparing photo…";
   let scaled;
   try { scaled=await resize(file); }
-  catch { if(job===photoJob){submit.disabled=false;matches.textContent="Couldnâ€™t read this photo. Try a JPEG.";}return; }
+  catch { if(job===photoJob){submit.disabled=false;matches.textContent="Couldn’t read this photo. Try a JPEG.";}return; }
   if(job!==photoJob || !form.isConnected)return;
   photo=scaled; preview.innerHTML=`<img class="preview" src="${scaled}" alt="Your plant">`;
   form.dataset.photoChanged="yes";
@@ -215,7 +219,7 @@ function journalUpdate(p, retry=false) {
 }
 function checkPlant(p) {
   openPot=p.id;photo=p.photo||"";photoJob++;
-  modal("Check visible health",`<form id="health-form" data-pot="${p.id}"><p><strong>${esc(p.name)}</strong> Â· ${esc(potLabel(p))}</p><div id="photo-preview">${icon(p)}</div><div id="check-preview">${heartBar(null)}</div>${healthFields()}<details class="check-fold"><summary>Update plant photo</summary>${photoControls()}</details><p id="matches" class="sub" aria-live="polite"></p><div id="add-profile"></div><div class="sheet-actions"><button type="submit" class="primary">Save health check</button>${button("detail","Back to pot",plantAttr(p))}</div></form>`);
+  modal("Check visible health",`<form id="health-form" data-pot="${p.id}"><p><strong>${esc(p.name)}</strong> · ${esc(potLabel(p))}</p><div id="photo-preview">${icon(p)}</div><div id="check-preview">${heartBar(null)}</div>${healthFields()}<details class="check-fold"><summary>Update plant photo</summary>${photoControls()}</details><p id="matches" class="sub" aria-live="polite"></p><div id="add-profile"></div><div class="sheet-actions"><button type="submit" class="primary">Save health check</button>${button("detail","Back to pot",plantAttr(p))}</div></form>`);
 }
 function historyPage(p,offset=0) {
   const rows=timeline(p);
@@ -224,24 +228,31 @@ function historyPage(p,offset=0) {
 }
 function downloadJournal(p) {
   const rows=timeline(p).map(e=>activityRow(p,e,true)).join("");
-  const html=`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(p.name)} Â· Petal Journal</title><style>body{font:16px/1.5 system-ui;max-width:45em;margin:auto;padding:20px;color:#213d30}small{display:block}img{display:block;max-width:100%;max-height:20em;margin-top:8px}.event{padding:12px 0;border-bottom:1px solid #ccc}button{display:none}p{white-space:pre-wrap}</style><h1>${esc(p.name)}</h1><p>${esc(potLabel(p))} Â· ${esc(p.location)}</p><h2>Care guide</h2>${savedCare(p)}<h2>Plant timeline</h2>${rows}</html>`;
+  const html=`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(p.name)} · Petal Journal</title><style>body{font:16px/1.5 system-ui;max-width:45em;margin:auto;padding:20px;color:#213d30}small{display:block}img{display:block;max-width:100%;max-height:20em;margin-top:8px}.event{padding:12px 0;border-bottom:1px solid #ccc}button{display:none}p{white-space:pre-wrap}</style><h1>${esc(p.name)}</h1><p>${esc(potLabel(p))} · ${esc(p.location)}</p><h2>Care guide</h2>${savedCare(p)}<h2>Plant timeline</h2>${rows}</html>`;
   const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="petal-journal-"+p.id+".html";a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function twinRecord(p) {
+  const dryingDays=observedDryingDays(p);
+  const latestGrowth=timeline(p).find(e=>["Growth update","New bloom","Repotted","Pruned"].includes(e.title));
+  const pattern=dryingDays!==null ? "About "+dryingDays+" days from watering to a ready check" : "Learning from watering and ready checks";
+  const cells=[["Environment",[p.location,p.exposure].filter(Boolean).join(" · ")],["Watering pattern",pattern],["Latest growth",latestGrowth ? latestGrowth.title+" · "+date(latestGrowth.at) : "No growth observation yet"]];
+  return `<section class="twin"><div class="twin-heading"><h3>Plant record</h3><small>Since ${date(p.created)}</small></div><dl>${cells.map(([label,value])=>`<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl></section>`;
 }
 function detail(p) {
   openPot=p.id;const g=potGuidance(p),attr=plantAttr(p);
   const recent=p.events.filter(e=>e.type==="water" && Date.now()-e.at<=30*day);
   const measured=recent.filter(e=>e.ml!=null), unknown=recent.length-measured.length;
   const total=measured.reduce((sum,e)=>sum+e.ml,0);
-  const summary=[measured.length ? total.toLocaleString(undefined,{maximumFractionDigits:2})+" mL recorded" : "",unknown ? unknown+" watering"+(unknown===1?"":"s")+" without an amount" : ""].filter(Boolean).join(" Â· ");
+  const summary=[measured.length ? total.toLocaleString(undefined,{maximumFractionDigits:2})+" mL recorded" : "",unknown ? unknown+" watering"+(unknown===1?"":"s")+" without an amount" : ""].filter(Boolean).join(" · ");
   const care=p.ended ? `<div class="callout"><strong>${esc(status(p))}</strong><div>${button("resume","Resume tracking",attr)}</div></div>` :
     `${button("check-health",p.health?"Update health check":"Check visible health",attr)}<div class="callout"><strong>${esc(status(p))}</strong><p>${esc(g.test)}</p><div class="actions">${button("ready","Yes, ready",attr)}${button("damp","Still damp",attr)}</div></div>
      <div class="actions">${button("water","Watered",attr,"primary")}${button("calendar","Calendar reminder",attr)}</div>`;
-  modal(p.name,`<p class="sub">${esc(potLabel(p))} Â· ${esc(p.location)} ${button("edit-pot","Edit pot",attr,"textbtn")}</p>${icon(p)}${heartBar(p.health)}${care}
+  modal(p.name,`<p class="sub">${esc(potLabel(p))} · ${esc(p.location)} ${button("edit-pot","Edit pot",attr,"textbtn")}</p>${icon(p)}${heartBar(p.health)}${care}${twinRecord(p)}
   <div class="actions">${button("update","Add photo or note",attr)}${p.species==="other" && p.photo ? button("retry-id","Identify this photo",attr) : ""}</div>
-  <h3>Care guide</h3>${savedCare(p)}<h3>Plant timeline</h3>${summary ? '<p class="quiet">Past 30 days Â· '+esc(summary)+'</p>' : ""}<div id="timeline">${historyPage(p)}</div>${button("export","Download timeline",attr,"textbtn")}`);
+  <h3>Care guide</h3>${savedCare(p)}<h3>Plant timeline</h3>${summary ? '<p class="quiet">Past 30 days · '+esc(summary)+'</p>' : ""}<div id="timeline">${historyPage(p)}</div>${button("export","Download timeline",attr,"textbtn")}`);
 }
 function editPot(p) {
-  modal("Edit pot",`<form id="edit-pot-form" data-pot="${p.id}"><label class="field">Pot name<input id="rename" maxlength="70" required value="${esc(p.name)}"></label><label class="field">${p.members?.length ? "Replace pot identification (optional)" : "Plant type"}<select id="reclassify">${[...catalog,["other",guides.other]].map(([key,g])=>`<option value="${key}" ${key===p.species?"selected":""}>${esc(g.name)}</option>`).join("")}</select></label><label class="field">Growing location<select id="relocate">${["Indoors","Outdoors in a pot"].map(place=>`<option ${place===p.location?"selected":""}>${place}</option>`).join("")}</select></label><button class="primary">Save changes</button></form>`);
+  modal("Edit pot",`<form id="edit-pot-form" data-pot="${p.id}"><label class="field">Pot name<input id="rename" maxlength="70" required value="${esc(p.name)}"></label><label class="field">${p.members?.length ? "Replace pot identification (optional)" : "Plant type"}<select id="reclassify">${[...catalog,["other",guides.other]].map(([key,g])=>`<option value="${key}" ${key===p.species?"selected":""}>${esc(g.name)}</option>`).join("")}</select></label><label class="field">Growing location<select id="relocate">${["Indoors","Outdoors in a pot"].map(place=>`<option ${place===p.location?"selected":""}>${place}</option>`).join("")}</select></label><label class="field">Observed light<select id="exposure">${["","Direct sun","Bright indirect light","Partial shade","Low light"].map(v=>`<option value="${v}" ${v===p.exposure?"selected":""}>${v||"Not recorded"}</option>`).join("")}</select></label><button class="primary">Save changes</button></form>`);
 }
 function editEvent(p,e) {
   modal("Watering entry",`<p>${esc(p.name)}</p><form id="amount-form" data-pot="${p.id}" data-event="${e.id}"><label class="field">Watered on<input required type="datetime-local" id="water-time" max="${localMinute(Date.now())}" value="${localMinute(e.at)}"></label><label class="field">Amount in mL (optional)<input type="number" min="0.01" max="1000000" step="0.01" id="amount" value="${e.ml??""}" placeholder="e.g. 250"></label><div class="actions"><button class="primary">Save entry</button>${button("undo","Undo this watering",plantAttr(p)+` data-event="${e.id}"`,"textbtn")}</div></form>`);
@@ -257,7 +268,7 @@ function calendar(p) {
 function current(p) {return pots.find(x=>x.id===p);}
 function closeOrDetail() {const p=current(openPot);if(p)detail(p);else dialog.close();}
 function appendUpdate(p,entry,species,members=[]) {
-  if(members.length && p.species==="other"){const label=members.map(m=>m.name).join(" + ");entry={...entry,note:[entry.note,label].filter(Boolean).join(" Â· ")};p={...p,members,name:p.name===guides.other.name?label:p.name};}
+  if(members.length && p.species==="other"){const label=members.map(m=>m.name).join(" + ");entry={...entry,note:[entry.note,label].filter(Boolean).join(" · ")};p={...p,members,name:p.name===guides.other.name?label:p.name};}
   const list=[...milestones(p)];
   const matched=p.species==="other" && species && species!=="other" && guides[species]?.source;
   if(matched){
@@ -343,12 +354,13 @@ body.addEventListener("submit",async ev=>{
       });
       closeOrDetail();flash("Timeline updated.");
     } else if(form.id==="edit-pot-form"){
-      const name=$("#rename").value.trim(),species=$("#reclassify").value,location=$("#relocate").value;
+      const name=$("#rename").value.trim(),species=$("#reclassify").value,location=$("#relocate").value,exposure=$("#exposure").value;
       await commit(form.dataset.pot,p=>{
         const list=[...milestones(p)];
         if(p.species!==species)list.push({at:Date.now(),title:"Identification corrected",note:guides[species].name});
+        if((p.exposure||"")!==exposure)list.push({at:Date.now(),title:"Light exposure changed",note:exposure||"Not recorded"});
         if(p.location!==location)list.push({at:Date.now(),title:"Growing location changed",note:location});
-        return {...p,...(p.species!==species?{members:[]}:{}),milestones:list,name:name||guides[species].name,species,location};
+        return {...p,...(p.species!==species?{members:[]}:{}),milestones:list,name:name||guides[species].name,species,location,exposure};
       });
       closeOrDetail();
     } else if(form.id==="amount-form"){

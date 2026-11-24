@@ -58,6 +58,13 @@ export function nextCheck(p) {
   const last = events[0];
   if (last.type === "ready") return last.at;
   if (last.type === "damp") return last.at + day;
+  const days = observedDryingDays(p) ?? guides[p.species].days;
+  return last.at + Math.round(days) * day;
+}
+
+export function observedDryingDays(p) {
+  const reset = Math.max(0,...(p.milestones || []).filter(m=>["Growing location changed","Light exposure changed","Repotted","Identification corrected"].includes(m.title)).map(m=>m.at));
+  const events = ordered(p).filter(e=>e.at>=reset);
   const samples = [];
   let water;
   for (const e of [...events].reverse()) {
@@ -69,6 +76,6 @@ export function nextCheck(p) {
     }
   }
   const recent = samples.slice(-3).sort((a,b) => a-b);
-  const days = recent.length >= 2 ? recent[Math.floor(recent.length / 2)] : guides[p.species].days;
-  return last.at + Math.round(days) * day;
+  if(recent.length<2)return null;
+  return recent.length===2 ? (recent[0]+recent[1])/2 : recent[1];
 }
