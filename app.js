@@ -305,6 +305,47 @@ async function matchPhoto(form,photoUrl,job) {
   }
   if(job===photoJob && form.isConnected)mountPreview(form,photoUrl,keys,resize);
 }
+function addPlantPicker(form,preview,original) {
+  preview.insertAdjacentHTML("beforeend",`<details class="plant-picker"><summary>Choose plant</summary>
+    <p>Tap the plant to center the frame, or use the arrow keys. Adjust the frame to include its leaves or flowers.</p>
+    <div class="crop-stage" tabindex="0" role="group" aria-label="Plant photo, use arrow keys to move the frame">
+      <img src="${original}" alt="Full photo"><span class="crop-frame"></span></div>
+    <label class="field">Frame size<input type="range" min="15" max="100" value="65"></label>
+    <button type="button" class="primary crop-scan">Scan this area</button></details>`);
+  const picker=preview.querySelector(".plant-picker"), stage=picker.querySelector(".crop-stage");
+  const image=stage.querySelector("img"), frame=stage.querySelector("span"), size=picker.querySelector("input");
+  let cx=.5,cy=.5;
+  const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
+  function bounds(){
+    const w=image.naturalWidth,h=image.naturalHeight,side=Math.min(w,h)*Number(size.value)/100;
+    return {x:clamp(cx*w-side/2,0,w-side),y:clamp(cy*h-side/2,0,h-side),side,w,h};
+  }
+  function draw(){
+    if(!image.naturalWidth)return;
+    const {x,y,side,w,h}=bounds();
+    Object.assign(frame.style,{left:100*x/w+"%",top:100*y/h+"%",width:100*side/w+"%",height:100*side/h+"%"});
+  }
+  image.onload=draw;picker.ontoggle=draw;size.oninput=draw;
+  stage.onclick=e=>{
+    const rect=stage.getBoundingClientRect();
+    cx=(e.clientX-rect.left)/rect.width;cy=(e.clientY-rect.top)/rect.height;draw();
+  };
+  stage.onkeydown=e=>{
+    const delta={ArrowLeft:[-.05,0],ArrowRight:[.05,0],ArrowUp:[0,-.05],ArrowDown:[0,.05]}[e.key];
+    if(delta){e.preventDefault();cx=clamp(cx+delta[0],0,1);cy=clamp(cy+delta[1],0,1);draw();}
+  };
+  picker.querySelector(".crop-scan").onclick=()=>{
+    if(!image.naturalWidth)return;
+    const {x,y,side}=bounds(),canvas=document.createElement("canvas");
+    canvas.width=canvas.height=Math.max(1,Math.round(side));
+    canvas.getContext("2d").drawImage(image,x,y,side,side,0,0,canvas.width,canvas.height);
+    photo=canvas.toDataURL("image/jpeg",.9);preview.querySelector(".preview").src=photo;
+    const job=++photoJob,submit=form.querySelector('[type="submit"]');
+    submit.disabled=true;picker.open=false;delete form.previewState;form.dataset.species="other";
+    form.querySelector("#add-profile").replaceChildren();
+    matchPhoto(form,photo,job).finally(()=>{if(job===photoJob && form.isConnected)submit.disabled=false;});
+  };
+}
 body.addEventListener("change",async e=>{
   if(!["file","camera"].includes(e.target.id) || !e.target.files.length) return;
   const form=e.target.form,job=++photoJob,file=e.target.files[0],matches=$("#matches"),preview=$("#photo-preview"),submit=form.querySelector('[type="submit"]');
@@ -321,6 +362,7 @@ body.addEventListener("change",async e=>{
   if(job!==photoJob || !form.isConnected)return;
   photo=scaled; preview.innerHTML=`<img class="preview" src="${scaled}" alt="Your plant">`;
   form.dataset.photoChanged="yes";
+  if(adding)addPlantPicker(form,preview,scaled);
   if(hint){
     matches.innerHTML=`<p>${esc(hint)}</p>${button("retake","Retake photo")} ${button("use-photo","Use this photo")}`;
     matches.querySelector('[data-action="retake"]').onclick=()=>form.querySelector("#camera").click();
