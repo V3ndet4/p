@@ -1,4 +1,4 @@
-import {mountPreview,examplePreview,savedMembers,potLabel,potGuidance,memberGuide} from "./pot-matches.js?v=3";
+import {mountPreview,examplePreview,savedMembers,potLabel,potGuidance,memberGuide,memberTaxon} from "./pot-matches.js?v=4";
 import {guides, catalog, day, observedDryingDays, nextCheck, latestWater} from "./guides.js?v=4";
 import {plants, change} from "./storage.js";
 import {heartBar, healthFields, observation} from "./health.js";
@@ -92,7 +92,7 @@ main.addEventListener("input",event=>{
 });
 function savedCare(p){
   if(!p.members?.length)return guideText(guides[p.species]);
-  return p.members.map(m=>{const g=memberGuide(m);return `<section class="plant-profile"><h3>${esc(m.name)}</h3><p><i>${esc(m.scientific)}</i></p>${g?guideText(g):"<p>No dedicated care guide yet. Follow the plant label until a guide is available.</p>"}</section>`;}).join("");
+  return p.members.map(m=>{const g=memberGuide(m),taxon=memberTaxon(m);return `<section class="plant-profile"><h3>${esc(m.name)}</h3><p><i>${esc(taxon?.[1] || m.scientific)}</i></p>${taxon ? `<p>Likely ${esc(taxon[2])} match · <a href="https://www.gbif.org/species/${taxon[3]}" target="_blank" rel="noopener noreferrer">${taxon[2]==="group"?"Parent genus on GBIF":"Taxonomy on GBIF"}</a></p>` : ""}${g?guideText(g):"<p>No dedicated care guide yet. Follow the plant label until a guide is available.</p>"}</section>`;}).join("");
 }
 function photoControls() {
   return `<div class="photo-controls"><label class="button">Take photo<input id="camera" type="file" accept="image/*" capture="environment"></label><label class="button">Choose photo<input type="file" id="file" accept="image/*"></label></div>`;

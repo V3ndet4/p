@@ -38,11 +38,11 @@ function carePreview(candidate) {
 export function renderMatches(candidates, selected = []) {
   if (!Array.isArray(candidates) || !candidates.length) return "";
   const chosen = new Set(selected);
-  const choices = candidates.map(({ name, scientific }, index) => {
+  const choices = candidates.map(({ name, scientific, rank }, index) => {
     const checked = chosen.has(index);
     return `<label class="mp-option${checked ? " mp-selected" : ""}">
       <input type="checkbox" data-candidate="${index}"${checked ? " checked" : ""}>
-      <span><strong>${escape(name || scientific || "Possible match")}</strong>${scientific && scientific !== name ? `<i>${escape(scientific)}</i>` : ""}</span></label>`;
+      <span><strong>${escape(name || scientific || "Possible match")}</strong>${rank ? `<small>Likely ${escape(rank)} match</small>` : ""}${scientific && scientific !== name ? `<i>${escape(scientific)}</i>` : ""}</span></label>`;
   }).join("");
   return `<div class="match-preview"><fieldset class="mp-picks"><legend>Which plant do you see?</legend>
     <p>These are possible matches for the photo. Choose more than one only if you see separate plants.</p>

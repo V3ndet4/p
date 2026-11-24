@@ -1,7 +1,7 @@
-import {plantNames} from "./model/plant-names.js";
+import {plantNames} from "./model/plant-names.js?v=2";
 import {guides} from "./guides.js?v=2";
 import {careKey,extraCare} from "./plant-profile.js";
-import {renderMatches} from "./match-preview.js";
+import {renderMatches} from "./match-preview.js?v=2";
 
 export function memberGuide(m){
   return extraCare(m.scientific) || (m.key && guides[m.key]?.source ? guides[m.key] : null);
@@ -17,7 +17,14 @@ function make(name,scientific,source,key){
 }
 function localMatch(id){
   const [name,scientific]=plantNames[id];
-  return make(name,scientific,"On device",guides[id]?.source ? id : undefined);
+  return {...make(name,scientific,"On device",guides[id]?.source ? id : undefined),taxonId:id,rank:plantNames[id][2]};
+}
+export function memberTaxon(m){
+  if(m.source!=="On device")return null;
+  if(Object.hasOwn(plantNames,m.taxonId))return plantNames[m.taxonId];
+  // Older records stored the scientific label without the model ID.
+  if(m.scientific==="Petunia × hybrida")return plantNames.petunia;
+  return Object.values(plantNames).find(([,scientific])=>scientific===m.scientific) || null;
 }
 function display(rows,selected){return renderMatches(rows.map(m=>({...m,guide:memberGuide(m)})),selected);}
 export function savedMembers(form){
