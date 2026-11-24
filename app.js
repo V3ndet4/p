@@ -252,13 +252,34 @@ function showAdd(scanning=false) {
   $("#example-fold").addEventListener("toggle",e=>{if(e.target.open && !$("#example-content").children.length)examplePreview($("#example-content"));});
 }
 
-async function resize(file) {
+function photoQualityHint(image) {
+  // Compare focus at a common scale so camera resolution does not set the threshold.
+  const sample=document.createElement("canvas");
+  sample.width=sample.height=192;
+  const ctx=sample.getContext("2d"), side=Math.min(image.width,image.height);
+  ctx.drawImage(image,(image.width-side)/2,(image.height-side)/2,side,side,0,0,192,192);
+  const rgba=ctx.getImageData(0,0,192,192).data, gray=new Uint8Array(192*192);
+  let dark=0, edgeEnergy=0;
+  for(let i=0;i<gray.length;i++){
+    gray[i]=.2126*rgba[4*i]+.7152*rgba[4*i+1]+.0722*rgba[4*i+2];
+    if(gray[i]<45)dark++;
+  }
+  if(dark>gray.length*.85)return "This photo looks very dark. Move the plant into brighter, even light.";
+  for(let y=1;y<191;y++)for(let x=1;x<191;x++){
+    const i=y*192+x;
+    const edge=4*gray[i]-gray[i-1]-gray[i+1]-gray[i-192]-gray[i+192];
+    edgeEnergy+=edge*edge;
+  }
+  return edgeEnergy/(190*190)<12 ? "The plant may be out of focus. Hold steady and tap a leaf to focus." : "";
+}
+async function resize(file, assess) {
   const url=URL.createObjectURL(file);
   try {
     const image=new Image(); image.src=url; await image.decode();
     const scale=Math.min(1,1280/Math.max(image.naturalWidth,image.naturalHeight));
     const canvas=document.createElement("canvas"); canvas.width=Math.max(1,Math.round(image.naturalWidth*scale)); canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
     const ctx=canvas.getContext("2d");ctx.fillStyle="white";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
+    if(assess)assess(canvas);
     return canvas.toDataURL("image/jpeg",.82);
   } finally {URL.revokeObjectURL(url);}
 }
@@ -292,12 +313,21 @@ body.addEventListener("change",async e=>{
   if($("#add-profile"))$("#add-profile").replaceChildren();
   if($("#inspected")){$("#inspected").value="";$("#healthy").value="";$("#check-preview").innerHTML=heartBar(null);}
   submit.disabled=true;matches.textContent="Preparing photo…";
-  let scaled;
-  try { scaled=await resize(file); }
+  let scaled, hint="";
+  try { scaled=await resize(file,adding ? canvas=>{hint=photoQualityHint(canvas);} : undefined); }
   catch { if(job===photoJob){submit.disabled=false;matches.textContent="Couldn’t read this photo. Try a JPEG.";}return; }
   if(job!==photoJob || !form.isConnected)return;
   photo=scaled; preview.innerHTML=`<img class="preview" src="${scaled}" alt="Your plant">`;
   form.dataset.photoChanged="yes";
+  if(hint){
+    matches.innerHTML=`<p>${esc(hint)}</p>${button("retake","Retake photo")} ${button("use-photo","Use this photo")}`;
+    matches.querySelector('[data-action="retake"]').onclick=()=>form.querySelector("#camera").click();
+    matches.querySelector('[data-action="use-photo"]').onclick=async ()=>{
+      await matchPhoto(form,scaled,job);
+      if(job===photoJob && form.isConnected)submit.disabled=false;
+    };
+    return;
+  }
   if(adding || (plant?.species==="other" && !plant?.members?.length) || form.id==="update-form" && form.dataset.reidentify)await matchPhoto(form,scaled,job);
   else matches.textContent="Photo ready for the timeline.";
   if(job===photoJob && form.isConnected)submit.disabled=false;
