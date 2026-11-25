@@ -31,17 +31,33 @@ export function savedMembers(form){
   const state=form.previewState;
   return state ? state.rows.filter((m,i)=>state.selected.includes(i)) : [];
 }
+// Field characters from NC State Extension's Plant Toolbox entries for each pair.
+const lookalikes = [
+  {ids:["_foxglove","snapdragon"], sources:["digitalis-purpurea","antirrhinum-majus"],
+    clue:"Common foxglove has hanging, open bells, often spotted inside. A typical snapdragon flower has two lips that meet at the opening.",
+    photo:"Photograph one bloom from the side with its opening visible."},
+  {ids:["_daylily","_lily"], sources:["hemerocallis","lilium"],
+    clue:"Daylily leaves form fans from the base. True lilies carry leaves along the flowering stem.",
+    photo:"Photograph the flowering stem down to the base, including where the leaves attach."}
+];
+function showComparison(root,ids){
+  const panel=root.querySelector(".match-comparison"), label=root.querySelector(".close-label");
+  const pair=lookalikes.find(({ids:pairIds})=>pairIds.every(id=>ids.includes(id)));
+  label.textContent=pair ? "Add the requested view of this plant" : "Add a close-up";
+  panel.innerHTML=pair ? `<div class="callout"><strong>Compare ${plantNames[pair.ids[0]][0]} and ${plantNames[pair.ids[1]][0]}</strong><p>${pair.clue}</p><p>${pair.photo}</p><small>Plant Toolbox · ${pair.sources.map((slug,i)=>`<a href="https://plants.ces.ncsu.edu/plants/${slug}/" target="_blank" rel="noopener noreferrer">${plantNames[pair.ids[i]][0]}</a>`).join(" · ")}</small></div>` : "";
+}
 export function mountPreview(form,picture,localKeys,resize){
   const root=form.querySelector("#add-profile");
   const rows=localKeys.filter(k=>plantNames[k]).map(localMatch);
   const state={rows,selected:form.id==="add-form" ? [] : rows.length===1?[0]:[]};form.previewState=state;
-  root.innerHTML=`<div class="match-results"></div><label class="field">Add a close-up of another plant in this pot<input type="file" accept="image/*" class="close-up"></label><div class="close-preview" role="status"></div><details class="check-fold"><summary>Optional specialist lookup</summary><p>Send this photo to Pl@ntNet for additional possible matches. Enter your own Pl@ntNet API key for this lookup. The journal does not store it.</p><label class="field">Pl@ntNet API key<input type="password" class="special-key" autocomplete="off" spellcheck="false"></label><button type="button" class="send-photo">Send photo to Pl@ntNet</button><p class="lookup-status" role="status"></p></details><details class="check-fold"><summary>Add a known plant by scientific name</summary><label class="field">Scientific name<input class="known-name" maxlength="100" placeholder="e.g. Sedum adolphii"></label><button type="button" class="add-known">Add to this pot</button></details>`;
+  root.innerHTML=`<div class="match-results"></div><div class="match-comparison"></div><label class="field"><span class="close-label">Add a close-up</span><input type="file" accept="image/*" class="close-up"></label><div class="close-preview" role="status"></div><details class="check-fold"><summary>Optional specialist lookup</summary><p>Send this photo to Pl@ntNet for additional possible matches. Enter your own Pl@ntNet API key for this lookup. The journal does not store it.</p><label class="field">Pl@ntNet API key<input type="password" class="special-key" autocomplete="off" spellcheck="false"></label><button type="button" class="send-photo">Send photo to Pl@ntNet</button><p class="lookup-status" role="status"></p></details><details class="check-fold"><summary>Add a known plant by scientific name</summary><label class="field">Scientific name<input class="known-name" maxlength="100" placeholder="e.g. Sedum adolphii"></label><button type="button" class="add-known">Add to this pot</button></details>`;
   function draw(){root.querySelector(".match-results").innerHTML=display(state.rows,state.selected);form.dataset.species=savedMembers(form)[0]?.key||"other";}
   function append(m){
     const idx=state.rows.findIndex(row=>row.scientific.toLowerCase()===m.scientific.toLowerCase());
     if(idx>=0)return idx;
     return state.rows.push(m)-1;
   }
+  showComparison(root,localKeys);
   let imageJob=0;
   root.onchange=async e=>{
     if(e.target.matches(".close-up")){
@@ -54,8 +70,9 @@ export function mountPreview(form,picture,localKeys,resize){
         const ids=await identify(data);
         if(job!==imageJob||!root.isConnected||form.previewState!==state)return;
         picture=data;
+        showComparison(root,ids);
         for(const k of ids)if(plantNames[k])append(localMatch(k));
-        info.innerHTML=`<img class="preview" src="${data}" alt="Additional close-up"><p>${ids.length?"Select the plants present in the pot.":"No clear local match."} Specialist lookup will use this close-up.</p>`;
+        info.innerHTML=`<img class="preview" src="${data}" alt="Additional close-up"><p>${ids.length?`This view suggests: ${ids.map(id=>plantNames[id][0]).join(", ")}.`:"No clear local match."} Specialist lookup will use this close-up.</p>`;
         draw();
       }catch{if(job===imageJob && root.isConnected)info.textContent="Could not check this close-up.";}
       return;

@@ -1,4 +1,4 @@
-import {mountPreview,examplePreview,savedMembers,potLabel,potGuidance,memberGuide,memberTaxon} from "./pot-matches.js?v=4";
+import {mountPreview,examplePreview,savedMembers,potLabel,potGuidance,memberGuide,memberTaxon} from "./pot-matches.js?v=5";
 import {guides, catalog, day, observedDryingDays, nextCheck, latestWater} from "./guides.js?v=4";
 import {plants, change} from "./storage.js";
 import {heartBar, healthFields, observation} from "./health.js";
