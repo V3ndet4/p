@@ -102,3 +102,66 @@ header nav a[aria-current]{background:#244c3a;color:white}
 .crop-stage{position:relative;width:fit-content;max-width:100%;margin:auto;cursor:crosshair}
 .crop-stage img{display:block;max-width:100%;max-height:48vh;width:auto;height:auto}
 .crop-frame{position:absolute;pointer-events:none;border:3px solid #fff;outline:2px solid #193d31;outline-offset:-5px;box-sizing:border-box}
+
+/* Forest theme */
+:root {
+  color-scheme: dark;
+  --paper: #081e16;
+  --surface: #102d21;
+  --ink: #f1f7ef;
+  --muted: #b1c8b8;
+  --line: #385849;
+  --green: #5ae990;
+  --pale: #1a3b2b;
+}
+header, header nav { background: var(--paper); border-color: var(--line); }
+header nav a[aria-current], .mark { color: var(--green); border-color: var(--green); }
+.garden-heading h1, .garden-copy h3 { color: var(--ink); }
+.over, .garden-status, .garden-copy summary { color: var(--muted); }
+.card, .empty, .panel, .plant-profile, .garden-card, .twin, .mp-tile {
+  background: var(--surface);
+}
+.garden-card, .sectionhead, .twin { border-color: var(--line); }
+.badge, .icon, .empty .icon, .garden-cover, .pot-portrait, .preview,
+.callout, input::file-selector-button, .mp-picks .mp-selected {
+  background: var(--pale);
+  color: var(--ink);
+}
+.callout, .mp-picks .mp-selected { border-color: var(--green); }
+button, .button, .photo-controls .button, .check-shortcut {
+  background: var(--pale);
+  border-color: var(--line);
+  color: var(--green);
+}
+.primary, .hero .primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: #062113;
+}
+.primary:hover, .hero .primary:hover { background: #86f4ad; }
+.textbtn { background: transparent; }
+.garden-cover { background: var(--pale); }
+input, select, textarea { background: var(--paper); border-color: var(--line); }
+:focus-visible, .photo-controls label:focus-within { outline-color: var(--green); }
+.err { color: #ffafa6; }
+.love-bar, .love-bar.unrated { background: var(--pale); border-color: var(--line); color: var(--ink); }
+.love-bar small, .unrated .heart { color: var(--muted); }
+.quick-counts button { color: #ffbcc9; }
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(90deg, #061a12ed, #061a12bb 55%, #061a128c),
+              url("./botanical-hero.jpg") center / cover no-repeat;
+}
+body { isolation: isolate; }
+@media (max-width: 650px) {
+  header nav a[aria-current] { background: var(--pale); color: var(--green); }
+}
+
+header .brand, header nav a { color: var(--ink); }
+header .mark, header nav a[aria-current] { background: var(--pale); color: var(--green); }
+.scanner-panel { background: var(--surface); border-color: var(--line); }
